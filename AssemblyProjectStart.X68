@@ -1,13 +1,13 @@
 *-------------------------------------------------------
-*First Submission. Second submission due Friday 31st March @ 5pm
+*Final Submission
 *Dion Buckley
 *C00220868
-*December - March 2017
-*Mass Effect RPG
+*December 2016 - March 2017
+*Mass Effect RPG - Text Based Adventure Game
 *No Known Bugs - just some messages that could do with secondary counterparts to more perfectly reflect the choices made by player
-*Time Taken: 30 - 42 hours approx
+*Time Taken: 42 - 50 hours approx
 *-------------------------------------------------------
-    ORG    $1048            ;program starts here to leave maximum room for each resource to be stored. If I store the resources after the programm somewhere, I ran into the issue of eventually later in the 
+    ORG    $1056            ;program starts here to leave maximum room for each resource to be stored. If I store the resources after the programm somewhere, I ran into the issue of eventually later in the 
                             ;game, that some of the strings were being stored in the same memory locations, since I have so many. So this is the simple fix.
 START:                      ; first instruction of program
     move   #900, $1000      ;credit resource in start
@@ -18,9 +18,10 @@ START:                      ; first instruction of program
     lea    $1016, A4
     move   #100 , $1032     ;player health
     lea    $1032, A5
-    move   #1   , $1040     ;this will later store and check who got sent to cover
-    lea    $1040, A6
-    
+    move   #0   , $900     ;this will later store and check who got sent to cover, used for that message and also to see who will return
+    lea    $900, A6
+    move   #0   , $950     ;this will later store and check ending type
+    lea    $950, A7 
     bra    first
 *-------------------------------------------------------
 *-------------------Welcome Screen----------------------
@@ -82,7 +83,7 @@ continue
     cmp     #0,(A4)                 ;This little check is to simply get the correct message. If they still have 0 soldiers go back to that point
     beq     loopPoint               ;whereas if they already have at least 1 they can be asked if they would like another
                                     ;seems small but I've done a lot of this type of stuff throughout the project, trying to make it polished.
-    cmp     #300,(A2)
+    cmp     #250,(A2)
     blt     lowCredits                           
     lea     rm7,A1
     bsr     display
@@ -614,6 +615,7 @@ wJake
     bsr pause
     bra ripSarah 
 wSarah                      ;Jake die message included so no need to store
+    move #3,(A6)            ;however storing this for use in checking who will return
     bsr clr_scrn
     lea wSarahMsg,A1
     bsr display 
@@ -627,6 +629,7 @@ ripJake
     bsr display 
     bsr endl
     sub     #1,(A4)
+    bsr pause
     bra battleEnd 
 ripSarah
     bsr clr_scrn
@@ -634,8 +637,10 @@ ripSarah
     bsr display 
     bsr endl
     sub     #1,(A4)
+    bsr pause
     bra battleEnd     
 noCover
+    sub #1,(A4)
     bsr clr_scrn                  
     lea noCoverMsg,A1
     bsr display
@@ -644,7 +649,7 @@ noCover
     bra fightStart
 
 solo
-    move #2,(A6)                                        ;storing that sarah went to cover
+    move #4,(A6)                                        ;storing that sarah went to cover
 
     bsr clr_scrn                  
     lea soloMsg,A1
@@ -789,11 +794,16 @@ hold
     bsr display
     bsr pause 
     bra checkCover
-
+    
+*-------------------------------------------------------
+*-------------------Battle Over-------------------------
+*------------------------------------------------------- 
 checkCover
     cmp #1,(A6)
     beq twoDeath
     cmp #2,(A6)
+    beq ripSarah
+    cmp #4,(A6)     ;it can also be stored as 4 because of the later use of these values for checking who will return
     beq ripSarah
     bra battleEnd
 
@@ -803,21 +813,264 @@ twoDeath
     bsr display
     bsr endl
     sub     #2,(A4)
+    bsr pause
   
 battleEnd
-    bsr pause
     bsr clr_scrn
     lea endOfBattle,A1
     bsr display 
     bsr pause
     bsr clr_scrn
     bra legion
-
+*-------------------------------------------------------
+*-------------------Legions Office----------------------
+*------------------------------------------------------- 
 legion
     lea legionMsg,A1
     bsr display 
+    
+    bsr input
+    cmp #1,D1
+    beq intrigue
+    
+    cmp #2,D1
+    beq bored
+
+    bsr clr_scrn                  
+    lea error2,A1       
+    bsr display         
+    bsr endl
+    bra legion
+
+intrigue
+    bsr clr_scrn  
+intrigue2                
+    lea intrigueMsg,A1
+    bsr display 
+    
+    bsr input
+    cmp #1,D1  
+    beq kill
+    
+    cmp #2,D1
+    beq letLive
+
+    bsr clr_scrn                  
+    lea error2,A1       
+    bsr display         
+    bsr endl
+    bra intrigue2
+
+bored
+    bsr clr_scrn
+    add #300,(A2)
+
+    lea boredMsg,A1
+    bsr display 
+    
     bsr pause
-    bsr gameOver
+    bsr clr_scrn 
+    bra checkReturn
+
+kill
+    add #300,(A2)
+
+    move #1,(A7)             ;storing this decision for checking ending type
+    bsr clr_scrn
+    lea killMsg,A1
+    bsr display 
+    
+    bsr pause
+    bsr clr_scrn 
+    bra checkReturn                     
+
+letLive
+    add #300,(A2)
+
+    move #2,(A7)             ;storing this decision for checking ending type
+    
+    bsr clr_scrn
+    lea letLiveMsg,A1
+    bsr display 
+    
+    bsr pause
+    bsr clr_scrn 
+    bra checkReturn    
+    
+checkReturn
+    cmp #2,(A6)             ;this would mean sarah  got sent to cover and jake is fighting hopper so Jake returns
+    beq jReturn
+    cmp #3,(A6)             ;this would mean jake got sent to cover and saraj with hopperm so she returns
+    beq sReturn             
+                            ;any other value ( 0 or 1 ) would mean noone can return so automatically contiues to noReturn
+noReturn
+    bsr clr_scrn
+    lea noReturnMsg,A1
+    bsr display 
+    
+    bsr pause
+    bsr clr_scrn 
+    bra checkEnd
+
+jReturn
+    bsr clr_scrn
+jReturn2
+    lea jReturnMsg,A1
+    bsr display 
+    
+    bsr input
+    cmp #1,D1           
+    beq jDone
+    
+    cmp #2,D1
+    beq jHug
+
+    cmp #3,D1
+    beq jKiss
+
+    bsr clr_scrn                  
+    lea error2,A1       
+    bsr display         
+    bsr endl
+    bra jReturn2
+    
+sReturn
+    bsr clr_scrn
+sReturn2
+    lea sReturnMsg,A1
+    bsr display 
+    
+    bsr input
+    cmp #1,D1           
+    beq sDone
+    
+    cmp #2,D1
+    beq sHug
+
+    cmp #3,D1
+    beq sKiss
+
+    bsr clr_scrn                  
+    lea error2,A1       
+    bsr display         
+    bsr endl
+    bra sReturn2
+
+jDone
+    bsr clr_scrn
+    lea jDoneMsg,A1
+    bsr display 
+    
+    bsr pause
+    bsr clr_scrn 
+    bra checkEnd
+    
+sDone
+    bsr clr_scrn
+    lea sDoneMsg,A1
+    bsr display 
+    
+    bsr pause
+    bsr clr_scrn 
+    bra checkEnd
+    
+jHug
+    bsr clr_scrn
+jHug2
+    lea jHugMsg,A1
+    bsr display 
+    
+    bsr input
+    cmp #1,D1           
+    beq checkEnd
+    
+    cmp #2,D1
+    beq jKiss
+
+    bsr clr_scrn                  
+    lea error2,A1       
+    bsr display         
+    bsr endl
+    bra jHug2      
+
+sHug
+    bsr clr_scrn
+sHug2
+    lea sHugMsg,A1
+    bsr display 
+    
+    bsr input
+    cmp #1,D1           
+    beq checkEnd
+    
+    cmp #2,D1
+    beq sKiss
+
+    bsr clr_scrn                  
+    lea error2,A1       
+    bsr display         
+    bsr endl
+    bra sHug2 
+
+jKiss
+    bsr clr_scrn
+    lea jKissMsg,A1
+    bsr display 
+    
+    bsr pause
+    bsr clr_scrn 
+    bra checkEnd     
+
+sKiss
+    bsr clr_scrn
+    lea sKissMsg,A1
+    bsr display 
+    
+    bsr pause
+    bsr clr_scrn 
+    bra checkEnd   
+   
+checkEnd
+    cmp #1,(A7)
+    beq killEnd
+    cmp #2,(A7)
+    beq peaceEnd
+
+killEnd
+    bsr clr_scrn
+    lea killEndMsg,A1
+    bsr display 
+    
+    bsr pause
+    bra final     
+
+peaceEnd
+    bsr clr_scrn
+    lea peaceEndMsg,A1
+    bsr display 
+    bsr pause
+final
+    bsr clr_scrn 
+    lea finalMsg,A1
+    bsr display 
+    
+    bsr pause
+    bsr clr_scrn 
+thanks
+    lea thanksMsg,A1
+    bsr display 
+    
+    bsr input   
+    cmp     #1,D1
+    beq     START
+    cmp     #2,D1
+    beq     exit
+    
+    bsr     clr_scrn
+    lea     error2,A1
+    bsr     display
+    bra     thanks
+      
 *-------------------------------------------------------
 *-------------------EXIT GAME---------------------------
 *-------------------------------------------------------    
@@ -837,11 +1090,11 @@ clr_scrn
     bsr  displayHUD
     rts
 endl
-    movem.l D0/A1,-(A7)
+    movem D0/A1,-(A7)
     move    #14,D0
     lea     crlf,A1
     trap    #15
-    movem.l (A7)+,D0/A1
+    movem (A7)+,D0/A1
     rts
 
 display           
@@ -889,8 +1142,28 @@ healthDown
 *-------------------------------------------------------    
 crlf	    dc.b	$0d,$0a,0
 cont        dc.b    '[Press Enter to continue]',0
-goHome      dc.b    '[What are you still doing here?.. The game is over.. play it again already!]',0                  ; cute 'after credits' message
-  
+goHome      dc.b    '[What are you still doing here?.. The game is over.. Go and play it again already!]',0                  ; cute 'after credits' message
+*-------------------Thanks For Playing------------------
+thanksMsg   dc.b    '___________.__                   __             ',$D,$A
+            dc.b    '\__    ___/|  |__ _____    ____ |  | __  ______ ',$D,$A    
+            dc.b    '  |    |   |  |  \\__  \  /    \|  |/ / /  ___/ ',$D,$A    
+            dc.b    '  |    |   |   Y  \/ __ \|   |  \    <  \___ \  ',$D,$A    
+            dc.b    '  |____|   |___|  (____  /___|  /__|_ \/____  > ',$D,$A    
+            dc.b    '                \/     \/     \/     \/     \/  ',$D,$A    
+            dc.b    '___________                                     ',$D,$A    
+            dc.b    '\_   _____/__________                           ',$D,$A    
+            dc.b    ' |    __)/  _ \_  __ \                          ',$D,$A    
+            dc.b    ' |     \(  <_> )  | \/                          ',$D,$A    
+            dc.b    ' \___  / \____/|__|                             ',$D,$A    
+            dc.b    '     \/                                         ',$D,$A    
+            dc.b    '__________.__                .__                ',$D,$A    
+            dc.b    '\______   \  | _____  ___.__.|__| ____    ____  ',$D,$A    
+            dc.b    ' |     ___/  | \__  \<   |  ||  |/    \  / ___\ ',$D,$A    
+            dc.b    ' |    |   |  |__/ __ \\___  ||  |   |  \/ /_/  >',$D,$A    
+            dc.b    ' |____|   |____(____  / ____||__|___|  /\___  / ',$D,$A    
+            dc.b    '                    \/\/             \//_____/  ',$D,$A    
+            dc.b    '1.[Restart Game] ',$D,$A,$D,$A
+            dc.b    '2.[Exit Game] ',0   
 *-------------------Game Over---------------------------
 over        dc.b    '...............................................................................',$D,$A
             dc.b    ' _______   ________  ___ __ __  ______     ______  __   __  ______  ______       ',$D,$A
@@ -901,15 +1174,17 @@ over        dc.b    '...........................................................
             dc.b    '   \:\_\ \ \ \:.\ \  \ \. \  \  \ \:\____/\  \:\_\ \ \ ..::/ /\:\____/\ \ `\ \ \ ',$D,$A
             dc.b    '    \_____\/  \__\/\__\/\__\/ \__\/\_____\/.  \_____\/\___/_(  \_____\/\_\/ \_\/ ',$D,$A
             dc.b    '................................................................................',$D,$A
-            dc.b    '  _   _                    _            _           _       _          ',$D,$A
-            dc.b    ' / | | |_ ___   _ _ ___ __| |_ __ _ _ _| |_   _ __ (_)_____(_)___ _ _  ',$D,$A
-            dc.b    ' | | |  _/ _ \ | ''_/ -_|_-<  _/ _` | ''_|  _| | ''  \| (_-<_-< / _ \ '' \ ',$D,$A
-            dc.b    ' |_|  \__\___/ |_| \___/__/\__\__,_|_|  \__| |_|_|_|_/__/__/_\___/_||_|',$D,$A
+            dc.b    ' ___      _                          _              _                           ',$D,$A
+            dc.b    '|_  |    | |_  ___    ___  ___  ___ | |_  ___  ___ | |_    ___  ___  _____  ___ ',$D,$A
+            dc.b    ' _| |_   |  _|| . |  |  _|| -_||_ -||  _|| .''||  _||  _|  | . || .''||     || -_|',$D,$A
+            dc.b    '|_____|  |_|  |___|  |_|  |___||___||_|  |__,||_|  |_|    |_  ||__,||_|_|_||___|',$D,$A
+            dc.b    '                                                          |___|              ',$D,$A
             dc.b    '................................................................................',$D,$A
-            dc.b    '  ___   _          ___       _ _      ___                ',$D,$A
-            dc.b    ' |_  ) | |_ ___   / _ \ _  _(_) |_   / __|__ _ _ __  ___ ',$D,$A
-            dc.b    '  / /  |  _/ _ \ | (_) | || | |  _| | (_ / _` | ''  \/ -_)',$D,$A
-            dc.b    ' /___|  \__\___/  \__\_\\_,_|_|\__|  \___\__,_|_|_|_\___|',$D,$A
+            dc.b    ' ___    _                     _  _                           ',$D,$A
+            dc.b    '|_  |  | |_  ___    ___  _ _ |_|| |_    ___  ___  _____  ___ ',$D,$A
+            dc.b    '|  _|  |  _|| . |  | . || | || ||  _|  | . || .''||     || -_|',$D,$A
+            dc.b    '|___|  |_|  |___|  |_  ||___||_||_|    |_  ||__,||_|_|_||___|',$D,$A
+            dc.b    '                     |_|               |___|                 ',$D,$A
             dc.b    '................................................................................',0
 *-------------------Welcome Screen----------------------
 welcome     dc.b    'In the wake of the attack on the Citadel, led by Sovereign and an indoctrinated',$D,$A
@@ -955,7 +1230,7 @@ rm6         dc.b    '[How many team members will you add to the crew before the 
 rm7         dc.b    '[Would you like to hire any more N7s before this mission?(250 credits each)]',0
 rm8         dc.b    '1.[Yes, I need as much help as I can get.] ',0    
 rm9         dc.b    '2.[No, I only really hired that one member because you made me anyway.]',0  
-rm10        dc.b    '[How many additional soldiers do you require today?(300 credits each)]',0  
+rm10        dc.b    '[How many additional soldiers do you require today?(250 credits each)]',0  
 rm11        dc.b    '[It seems like you are too low on credits to afford any more soldiers!]',$D,$A
             dc.b    '[Come back when you have earned more credits!]',$D,$A,$D,$A
             dc.b    'Broke, and fully teamed up, you feel ready, no, excited even, to go and hunt',$D,$A 
@@ -1345,26 +1620,131 @@ endOfBattle dc.b    'With no time to dwell on the chaos of the battle, you rush 
             dc.b    'of the building and kick through the door to the last room.',$D,$A,$D,$A    
             dc.b    'Here you find Legion, the Geth VI, sitting in a chair, unguarded.',0 
             
-legionMsg   dc.b    '//Placeholder story until I hand up for extension this friday.',$D,$A   
-            dc.b    '//Legion tries to convince you to let him and his people live.',$D,$A   
-            dc.b    '//The Geth are all but extinct thanks to being led astray by Saran and',$D,$A   
-            dc.b    '//Soveirgn. And you are not helping by hunting down all the retreating geth.',$D,$A   
-            dc.b    '//let him live and get stabbed in back / or get saved by teammate',$D,$A   
-            dc.b    '//shoot him mid sentece',$D,$A   
-            dc.b    '//Search the office for 350 credits',$D,$A   
-            dc.b    '//Blow up base killing all geth inside',$D,$A   
-            dc.b    '//Back to Normandy',$D,$A   
-            dc.b    '//Hire some more crew with new credits',$D,$A   
-            dc.b    '//Another distress beacon comes in = more geth to hunt down',$D,$A   
-            dc.b    '//as about to setoff for this, Hulking ship comes along and destroys SSV',$D,$A   
-            dc.b    '// = ME2 opening. you drift off into space... Thanks for playing',0 
+legionMsg   dc.b    'Legion: "Shepard. How nice it is to finally meet you.. Now look Shepard, I ',$D,$A  
+            dc.b    'know why you and your team are here. But humour me for but a few meagre ',$D,$A   
+            dc.b    'minutes of your time, I implore you."',$D,$A,$D,$A      
+            dc.b    '1.[You are intrigued so you hear him out]',$D,$A,$D,$A      
+            dc.b    '2.[You are bored so you shoot his face off]',0  
+            
+intrigueMsg dc.b    'Legion: "While we do take our share of the blame for what has transpired ',$D,$A   
+            dc.b    'recently, thanks to being led astray by Saran and Sovereign my people are all ',$D,$A   
+            dc.b    'but extinct. Also, you have not helped by hunting down all of the now, ',$D,$A   
+            dc.b    'retreating Geth since the battle at Citadel.',$D,$A   
+            dc.b    'I would urge you Shepard, please, to let what few Geth now remain live out our ',$D,$A   
+            dc.b    'remaining days here, in peace. Our numbers are too few to do any harm."',$D,$A ,$D,$A   
+            dc.b    '1.[You feel the Geth are not to be trusted, so you finish this now]',$D,$A,$D,$A     
+            dc.b    '2.[You feel empathy towards the Geth, so you will let them live on]',0
+  
+killMsg     dc.b    'It has been a long day, you have witnessed first-hand the deaths of your team ',$D,$A   
+            dc.b    'at the hands of Legions Geth troops. While there may always be some small part ',$D,$A   
+            dc.b    'of you that would wonder if the Geth truly were ready to lay down arms and ',$D,$A   
+            dc.b    'live out their remaining days in peace, you are OK with the choice you made.',$D,$A ,$D,$A   
+            dc.b    'You take out your pistol and shoot Legions damn face off mid-sentence. He ',$D,$A   
+            dc.b    'falls to his desk, cracking it in two.',$D,$A  ,$D,$A   
+            dc.b    'You now take this time to quickly search the office.',$D,$A,$D,$A     
+            dc.b    'To your delight you find 300 credits!',0
+            
+letLiveMsg  dc.b    'You empathise with the struggle of the Geth. You feel that you understand ',$D,$A   
+            dc.b    'where things went wrong for them and you truly believe what Legion is saying ',$D,$A   
+            dc.b    'to be true.',$D,$A ,$D,$A   
+            dc.b    'You share a brief moment of understanding with Legion , you then give a brief ',$D,$A   
+            dc.b    'nod towards him and turn to leave the facility. You know at that moment that ',$D,$A   
+            dc.b    'the Geth will no longer be a problem.',$D,$A,$D,$A   
+            dc.b    'You now take this time to quickly search the office.',$D,$A,$D,$A  
+            dc.b    'Legion does give you a very strange look but that does not dissuade you.',$D,$A,$D,$A    
+            dc.b    'To your delight you find 300 credits!',0
+  
+boredMsg    dc.b    'It has been a long day, you have witnessed first-hand the deaths of your team ',$D,$A   
+            dc.b    'at the hands of Legions Geth troops. While there may always be some small part ',$D,$A   
+            dc.b    'of you that would have wanted to know what Legion had to say, you are OK with ',$D,$A   
+            dc.b    'that.',$D,$A,$D,$A   
+            dc.b    'You take out your pistol and shoot Legions damn face off mid-sentence. He ',$D,$A   
+            dc.b    'falls to his desk, cracking it in two.',$D,$A,$D,$A     
+            dc.b    'You now take this time to quickly search the office.',$D,$A  ,$D,$A   
+            dc.b    'To your delight you find 300 credits!',0
+   
+sReturnMsg  dc.b    'Just then, Sarah steps through the door, covered in transmission and hydraulic ',$D,$A   
+            dc.b    'fluid from her battle with the Hopper.',$D,$A,$D,$A    
+            dc.b    'Sarah: "Did I already miss it?"',$D,$A ,$D,$A   
+            dc.b    '1.["We''re done here"]',$D,$A,$D,$A    
+            dc.b    '2.[You feel you both could use a hug after all that so you hug her]',$D,$A,$D,$A    
+            dc.b    '3.[You feel impassioned by the work achieved today so you go to kiss her] ',0
+  
+jReturnMsg  dc.b    'Just then, Jake steps through the door, covered in transmission and hydraulic ',$D,$A   
+            dc.b    'fluid from his battle with the Hopper.',$D,$A,$D,$A    
+            dc.b    'Jake: "Did I already miss it?"',$D,$A ,$D,$A   
+            dc.b    '1.["We''re done here"]',$D,$A,$D,$A    
+            dc.b    '2.[You feel you both could use a hug after all that so you hug him]',$D,$A,$D,$A    
+            dc.b    '3.[You feel impassioned by the work achieved today so you go to kiss him] ',0  
 
+sDoneMsg    dc.b    'Sarah: "Then let''s not linger."',0
+                                                                                      
+jDoneMsg    dc.b    'Jake: "Then let''s not linger."',0
+
+sHugMsg     dc.b    'You hug Sarah. She seems suprised but she clutches her arms around you.',$D,$A,$D,$A                                                                                        
+            dc.b    'Sarah: "Its great to see you too Commander.. Are we done with this dreaded place?"',$D,$A,$D,$A
+            dc.b    '1.["Yes, we should get moving."]',$D,$A,$D,$A    
+            dc.b    '2.["Almost". As you lean in to kiss her.]',0
+                                                                            
+jHugMsg     dc.b    'You hug Jake. He seems suprised but he clutches his arms around you.',$D,$A,$D,$A                                                                                        
+            dc.b    'Jake: "Its great to see you too Commander.. Are we done with this dreaded place?"',$D,$A,$D,$A  
+            dc.b    '1.["Yes, we should get moving."]',$D,$A,$D,$A    
+            dc.b    '2.["Almost". As you lean in to kiss him.]',0
+                                                                                    
+sKissMsg    dc.b    'You kiss Sarah on the lips, she blushes. She prolongs the kiss as she wraps ',$D,$A                                                                                        
+            dc.b    'her hands around you, and pulls herself closer.',$D,$A,$D,$A                                                                                        
+            dc.b    'Sarah: "I have wanted to do that ever since we met nine years ago!"',$D,$A ,$D,$A                                                                                        
+            dc.b    'You: "We can continue this later, right now we should get back to the ',$D,$A                                                                                        
+            dc.b    'Normandy."',0
+                                                                                       
+jKissMsg    dc.b    'You kiss Jake on the lips, he blushes. He prolongs the kiss as he wraps ',$D,$A                                                                                        
+            dc.b    'his hands around you, and pulls himself closer.',$D,$A,$D,$A                                                                                        
+            dc.b    'Jake: "I have wanted to do that ever since I saw you on the news years ago ',$D,$A                                                                                    
+            dc.b    'when you survived Akuze!"',$D,$A,$D,$A        
+            dc.b    'You: "We can continue this later, right now we should get back to the ',$D,$A                                                                                        
+            dc.b    'Normandy."',0                                                                                      
+ 
+noReturnMsg dc.b    'Just then you realise to yourself that every new recruit has, in fact, ',$D,$A   
+            dc.b    'perished on this mission. It looks like once again John Shepard is the sole ',$D,$A   
+            dc.b    'survivor.',0
+  
+peaceEndMsg dc.b    'You walk away now from the Geth compound. Having made a peace treaty of sorts ',$D,$A   
+            dc.b    'you are now under no fire from the Geth here. The Normandy comes to pick you ',$D,$A   
+            dc.b    'up.',$D,$A ,$D,$A   
+            dc.b    'When you arrive back on the Normandy you wonder where you will go now that the ',$D,$A   
+            dc.b    'Geth are no longer a problem. You command joker to bring you back to Citadel ',$D,$A   
+            dc.b    'space where you can update the Council on your mission status and possibly hire ',$D,$A   
+            dc.b    'some new recruits for whatever mission you will take on next.',0
+ 
+killEndMsg  dc.b    'With Legion dead the rest of the Geth are fast encroaching upon your position. ',$D,$A   
+            dc.b    'You quickly plant high impact timed explosives within the office. You arm the ',$D,$A   
+            dc.b    'explosives, and with just ninety seconds to escape the compound you bolt for ',$D,$A   
+            dc.b    'the extraction point.',$D,$A,$D,$A   
+            dc.b    'You come under some heavy fire but with quick wit and manoeuvrability no ',$D,$A   
+            dc.b    'injury is suffered. You round the corner to the extraction point and see the ',$D,$A   
+            dc.b    'Normandy pull up. Then you board her just in time to witness the huge ',$D,$A   
+            dc.b    'explosion of the entire compound from the skies.',$D,$A,$D,$A   
+            dc.b    'Thankfully you were just out of the blast range. You wonder to yourself, where ',$D,$A   
+            dc.b    'you will go now that the Geth are no longer a problem. You command joker to ',$D,$A   
+            dc.b    'bring you back to Citadel space where you can update the Council on your ',$D,$A   
+            dc.b    'mission status and possibly hire some new recruits for whatever mission you ',$D,$A   
+            dc.b    'will take on next.',0
+
+finalMsg    dc.b    'Alarms begin to pierce your ears, accompanied by flashing red lights',$D,$A
+            dc.b    'You rush from your Commanders quarters to find out what in the hell is going on.',$D,$A
+            dc.b    'The door of your quarters opens just in time for you to witness, in what feels',$D,$A
+            dc.b    'now like an eternity frozen in time, giant beams of energy rip the through',$D,$A
+            dc.b    'the ship, one after another in quick succession.',$D,$A,$D,$A
+            dc.b    'Before you even have time to react the ship is split in two and you are blasted',$D,$A
+            dc.b    'off into the deep, dark, abyss of space...',0
 
   
-     
-            dc.b    '',$D,$A   
+*this is just here in case I want to add more lines of story later, makes for easily making multiple lines*                                                   
+            dc.b    '',$D,$A                                                                                        
     END    START        ; last line of source
     
+
+
 
 
 
